@@ -62,6 +62,8 @@ public class Telegram extends Thread {
 		JSONObject res = new JSONObject();
 		res.put("chat_id", message.getRecipient());
 		res.put("text", message.getMessage());
+		
+		//res.put("reply_markup", "{\"one_time_keyboard\":true,\"keyboard\":[[{\"text\":\"A1\"}]]}");
 		res.put("parse_mode", "Markdown");
 		return res.toString();
 	}

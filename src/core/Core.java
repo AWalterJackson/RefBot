@@ -262,9 +262,6 @@ public class Core extends Thread {
 		case "reportforward":
 			commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(), c.getDetails()));
 			break;
-		case "bounce":
-			commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(), c.getDetails()));
-			break;
 		default:
 			commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(), "Unknown Command."));
 			break;
