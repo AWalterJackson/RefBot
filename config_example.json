@@ -1,0 +1,11 @@
+{
+    "thread_interval":3000,
+	"load_clients":{
+		"discord":false,
+		"telegram":true
+	},
+	"telegram_config":{
+		"token":"examplehashvalue",
+        "master":"exampletelegramid"
+	}
+}
