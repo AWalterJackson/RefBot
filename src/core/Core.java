@@ -34,11 +34,13 @@ public class Core extends Thread {
 
 	private static int interval;
 
+	private static CommandBuffer commandbuffer;
+
 	public static void main(String[] args) throws Exception {
 		config = new BotParams();
 		interval = config.getInterval();
 
-		CommandBuffer commandbuffer = new CommandBuffer(DEBUG_MODE);
+		commandbuffer = new CommandBuffer(DEBUG_MODE);
 		ArrayList<Command> incoming;
 		ArrayList<Thread> errs;
 		Telegram tg;
@@ -80,19 +82,18 @@ public class Core extends Thread {
 			incoming = commandbuffer.pullCommands(CLIENT_NAME);
 
 			for (int i = 0; i < incoming.size(); i++) {
-				commandbuffer.writeOutgoing(process(incoming.get(i)));
+				process(incoming.get(i));
 			}
 			Thread.sleep(interval);
 		}
 	}
 
-	private static Response process(Command c) {
+	private static void process(Command c) {
 		String com = c.getCommand().toLowerCase();
 		String senderusername;
-		try { 
+		try {
 			senderusername = Telegram.getUsername(c.getSender());
-		}
-		catch(Exception e){
+		} catch (Exception e) {
 			senderusername = "";
 		}
 		NBotlogger.log(CLIENT_NAME, com + " from " + c.getSender() + " via " + c.getClient());
@@ -113,31 +114,40 @@ public class Core extends Thread {
 				modules = modules.substring(0, modules.length() - 1);
 				errs = errs.substring(0, errs.length() - 1);
 
-				return new Response(c.getClient(), c.getSender(), "System running.\nSystem Information:\n" + sysinfo
-						+ "\n\nLoaded Modules:\n" + modules + "\n\nErrors since last launch:\n" + errs);
+				commandbuffer.writeOutgoing(
+						new Response(c.getClient(), c.getSender(), "System running.\nSystem Information:\n" + sysinfo
+								+ "\n\nLoaded Modules:\n" + modules + "\n\nErrors since last launch:\n" + errs));
 			} else {
-				return new Response(c.getClient(), c.getSender(),
-						"You are not authorised to execute this command. This incident has been logged.");
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+						"You are not authorised to execute this command. This incident has been logged."));
 			}
+			break;
 		case "/start":
-			return new Response(c.getClient(), c.getSender(),
-					"Hi there! I'm RefBot, I allow you to store a character reference including an image and description within Telegram and also allow you to view references stored by others.\nLet's begin, try out /commands to see what I do in detail!\n\nBot created by @Nantangitan, if you like the bot and want to help me buy food, try /donate !");
+			commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+					"Hi there! I'm RefBot, I allow you to store a character reference including an image and description within Telegram and also allow you to view references stored by others.\nLet's begin, try out /commands to see what I do in detail!\n\nBot created by @Nantangitan, if you like the bot and want to help me buy food, try /donate !"));
+			break;
 		case "/donate":
-			return new Response(c.getClient(), c.getSender(), "Donations can be made at paypal.me/nantangitan\nAnd anything at all is greatly appreciated. :D");
-		case "/set":
-			if(senderusername.equals("")){
-				return new Response(c.getClient(), c.getSender(), "You must have a Telegram username set in order to use this functionality.");
+			commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+					"Donations can be made at paypal.me/nantangitan\nAnd anything at all is greatly appreciated. :D"));
+			break;
+		case "/create":
+			if (senderusername.equals("")) {
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+						"You must have a Telegram username set in order to use this functionality."));
+				break;
 			}
 			if (c.getDetails().equals("")) {
-				return new Response(c.getClient(), c.getSender(),
-						"User sent malformed command.\nRefer to command formatting in client tooltips.");
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+						"User sent malformed command.\nRefer to command formatting in client tooltips."));
+				break;
 			}
 			String caption;
 			String[] toks = c.getDetails().split(" ", 2);
 			String url = toks[0];
 			if (!validURL(url)) {
-				return new Response(c.getClient(), c.getSender(),
-						"URL does not comply with current ruleset.\nTo view rules, use /rules");
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+						"URL does not comply with current ruleset.\nTo view rules, use /rules"));
+				break;
 			}
 			if (toks.length > 1) {
 				caption = toks[1];
@@ -145,19 +155,24 @@ public class Core extends Thread {
 				caption = "";
 			}
 
-			String jsonwriteable = "{\"url\":\"" + url + "\",\"caption\":\"" + caption + "\"}";
+			JSONObject jsonwriteable = new JSONObject();
+			jsonwriteable.put("url", url);
+			jsonwriteable.put("caption", caption);
 			try {
 				PrintWriter outfile = new PrintWriter(
 						storagepath + "\\" + Telegram.getUsername(c.getSender()) + ".json");
-				outfile.println(jsonwriteable);
+				outfile.println(jsonwriteable.toString());
 				outfile.close();
-				return new Response(c.getClient(), c.getSender(), caption, MsgType.PHOTO, url);
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(), caption, MsgType.PHOTO, url));
+				break;
 			} catch (FileNotFoundException e) {
-				return new Response(c.getClient(), c.getSender(),
-						"An error has occurred writing the data to storage. Please try again in a few moments.\nThis error has been logged.");
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+						"An error has occurred writing the data to storage. Please try again in a few moments.\nThis error has been logged."));
+				break;
 			} catch (Exception e) {
-				return new Response(c.getClient(), c.getSender(),
-						"An error has occurred reading user data from Telegram, this was likely due to a communication error with the server and should resolve within a few minutes.");
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+						"An error has occurred reading user data from Telegram, this was likely due to a communication error with the server and should resolve within a few minutes."));
+				break;
 			}
 		case "/get":
 			if (c.getDetails().matches("@[a-z|0-9|A-Z|_]{5,}$")) {
@@ -167,68 +182,92 @@ public class Core extends Thread {
 						BufferedReader reader = new BufferedReader(new FileReader(data));
 						JSONObject jsondata = new JSONObject(reader.readLine());
 						reader.close();
-						return new Response(c.getClient(), c.getSender(), jsondata.getString("caption"), MsgType.PHOTO,
-								jsondata.getString("url"));
+						commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+								jsondata.getString("caption"), MsgType.PHOTO, jsondata.getString("url")));
+						commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(), jsondata.getString("caption")));
+						break;
 					} catch (IOException e) {
-						return new Response(c.getClient(), c.getSender(),
-								"An error has occurred reading reference data. Please try again later.");
+						commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+								"An error has occurred reading reference data. Please try again later."));
+						break;
 					}
 				} else {
-					return new Response(c.getClient(), c.getSender(),
-							"No reference stored for that user.\nTell them to get on board! :D");
+					commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+							"No reference stored for that user.\nTell them to get on board! :D"));
+					break;
 				}
 			} else {
-				return new Response(c.getClient(), c.getSender(), "Malformed or missing username. Make sure to specify using the format: @username");
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+						"Malformed or missing username. Make sure to specify using the format: @username"));
+				break;
 			}
 		case "/delete":
-			if(senderusername.equals("")){
-				return new Response(c.getClient(), c.getSender(), "You must have a Telegram username set in order to use this functionality.");
+			if (senderusername.equals("")) {
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+						"You must have a Telegram username set in order to use this functionality."));
+				break;
 			}
 			try {
 				File data = new File(storagepath + "\\" + Telegram.getUsername(c.getSender()) + ".json");
 				if (data.exists()) {
 					data.delete();
-					return new Response(c.getClient(), c.getSender(),
-							"Datafile deleted. This includes both the reference image and the description.");
+					commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+							"Datafile deleted. This includes both the reference image and the description."));
+					break;
 				} else {
-					return new Response(c.getClient(), c.getSender(),
-							"No datafile was found for this user, nothing to delete.");
+					commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+							"No datafile was found for this user, nothing to delete."));
+					break;
 				}
 			} catch (Exception e) {
-				return new Response(c.getClient(), c.getSender(),
-						"An error has occurred reading user data from Telegram, this was likely due to a communication error with the server and should resolve within a few minutes.");
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+						"An error has occurred reading user data from Telegram, this was likely due to a communication error with the server and should resolve within a few minutes."));
+				break;
 			}
 		case "/report":
-			if(senderusername.equals("")){
-				return new Response(c.getClient(), c.getSender(), "You must have a Telegram username set in order to use this functionality.");
+			if (senderusername.equals("")) {
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+						"You must have a Telegram username set in order to use this functionality."));
+				break;
 			}
-			if(c.getDetails().equals("")){
-				return new Response(c.getClient(), c.getSender(), "No user specified for report.");
+			if (c.getDetails().equals("")) {
+				commandbuffer
+						.writeOutgoing(new Response(c.getClient(), c.getSender(), "No user specified for report."));
+				break;
 			}
 			String[] dets = c.getDetails().split(" ", 2);
 			String reason;
-			if(!dets[0].matches("@[a-z|0-9|A-Z|_]{5,}$")){
-				return new Response(c.getClient(), c.getSender(), "Malformed username. Username must consist only of _, 0-9 or a-z, must be at least 5 characters long and are case-insensitive.");
+			if (!dets[0].matches("@[a-z|0-9|A-Z|_]{5,}$")) {
+				commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+						"Malformed username. Username must consist only of _, 0-9 or a-z, must be at least 5 characters long and are case-insensitive."));
+				break;
 			}
-			if(dets.length == 1){
+			if (dets.length == 1) {
 				reason = "None";
-			}
-			else{
+			} else {
 				reason = dets[1];
 			}
-			return new Response(c.getClient(), c.getSender(), c.getDetails(), MsgType.MULTICAST, reason);
+			commandbuffer.writeOutgoing(
+					new Response(c.getClient(), c.getSender(), c.getDetails(), MsgType.MULTICAST, reason));
+			break;
 		case "/commands":
-			return new Response(c.getClient(), c.getSender(), "/commands - see all commands as a message\n\n/delete - wipes your stored data. (All relevant files will be deleted and no trace will remain)\n\n/donate - Displays donation information\n\n/get - \'get @username\' Retrieves the reference sheet and character description for the given user\n\n/report - \'report @username <reason>\' Reports the given user for content violation. Note that this command will also track who submitted the report.\n\n/rules - Retrieves the Terms of Service for using this bot AND the list of allowed domains for images.\n\n/set - \'set <Image URL> <Character Description>\' Sets your current reference sheet and description. Overwrites previous data.\n\n/start - Display the welcome message again");
+			commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+					"/commands - see all commands as a message\n\n/delete - wipes your stored data. (All relevant files will be deleted and no trace will remain)\n\n/donate - Displays donation information\n\n/get - \'get @username\' Retrieves the reference sheet and character description for the given user\n\n/report - \'report @username <reason>\' Reports the given user for content violation. Note that this command will also track who submitted the report.\n\n/rules - Retrieves the Terms of Service for using this bot AND the list of allowed domains for images.\n\n/set - \'set <Image URL> <Character Description>\' Sets your current reference sheet and description. Overwrites previous data.\n\n/start - Display the welcome message again"));
+			break;
 		case "/rules":
-			return new Response(c.getClient(), c.getSender(),
-					"*1.* Do not store images of characters you do not own.\n\n*2.* There is no strictly disallowed content, however photographs depicting illegal acts will be dealt with on a case by case basis and appropriate action taken where neccessary.\n\n*3.* Repeated abuse of the report system will result in this feature being disabled for your telegram account.\n\n*4.* If you are repeatedly reported and the report is upheld (You are found to be in breach of these rules), this bot may be disabled for your telegram account entirely.\n\n*Image guidelines and Deletion policy*\nImages must be at most 5mb in size and be either a JPG, PNG, GIF or BMP, descriptions can be of arbitrary length.\nRefbot does not store or retain anything other than the link and description provided paired with your telegram username.\nWhen you use the delete function, ALL details are deleted in their entirety and no records retained.");
-		//Metacases, these are only ever invoked by other parts of the program.
+			commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(),
+					"*1.* Do not store images of characters you do not own.\n\n*2.* There is no strictly disallowed content, however photographs depicting illegal acts will be dealt with on a case by case basis and appropriate action taken where neccessary.\n\n*3.* Repeated abuse of the report system will result in this feature being disabled for your telegram account.\n\n*4.* If you are repeatedly reported and the report is upheld (You are found to be in breach of these rules), this bot may be disabled for your telegram account entirely.\n\n*Image guidelines and Deletion policy*\nImages must be at most 5mb in size and be either a JPG, PNG, GIF or BMP, descriptions can be of arbitrary length.\nRefbot does not store or retain anything other than the link and description provided paired with your telegram username.\nWhen you use the delete function, ALL details are deleted in their entirety and no records retained."));
+			break;
+		// Metacases, these are only ever invoked by other parts of the program.
 		case "reportforward":
-			return new Response(c.getClient(), c.getSender(), c.getDetails());
+			commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(), c.getDetails()));
+			break;
 		case "bounce":
-			return new Response(c.getClient(), c.getSender(), c.getDetails());
+			commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(), c.getDetails()));
+			break;
 		default:
-			return new Response(c.getClient(), c.getSender(), "Unknown Command.");
+			commandbuffer.writeOutgoing(new Response(c.getClient(), c.getSender(), "Unknown Command."));
+			break;
 		}
 
 	}

@@ -59,28 +59,32 @@ public class Telegram extends Thread {
 	}
 
 	private String buildResponse(Response message) {
-		String res = "{\"chat_id\":" + message.getRecipient() + ",\"text\":\"" + message.getMessage() + "\"" + ",\"parse_mode\":\"Markdown\"" +"}";
-		return res;
+		JSONObject res = new JSONObject();
+		res.put("chat_id", message.getRecipient());
+		res.put("text", message.getMessage());
+		res.put("parse_mode", "Markdown");
+		return res.toString();
 	}
 
 	private String buildReportResponse(Response message) {
-		String res = "{\"chat_id\":" + message.getRecipient() + ",\"text\":\""
-				+ "Report received! I'll look into it as soon as possible.\n-@Nantangitan\n\nPlease note that abuse of this system will not be tolerated." + "\"}";
+		JSONObject res = new JSONObject();
+		res.put("chat_id", message.getRecipient());
+		res.put("text", "Report received! I'll look into it as soon as possible.\n-@Nantangitan\n\nPlease note that abuse of this system will not be tolerated.");
 		try {
 			this.commandbuffer.writeIncoming(new Command(message.getClient(), master, "reportforward",
 					"@"+getUsername(message.getRecipient()) + " reported " + message.getMessage() + "\nReason: "+ message.getAttachment()));
 		} catch (Exception e) {
 			System.out.println("Err");
 		}
-		return res;
+		return res.toString();
 	}
 
 	private String buildPhotoResponse(Response message) {
-		String res = "{\"chat_id\":" + message.getRecipient() + ",\"caption\":" + "\"\"" + ",\"photo\":\""
-				+ message.getAttachment() + "\"}";
-		this.commandbuffer.writeIncoming(
-				new Command(message.getClient(), message.getRecipient(), "bounce", message.getMessage()));
-		return res;
+		JSONObject res = new JSONObject();
+		res.put("chat_id", message.getRecipient());
+		res.put("caption", "");
+		res.put("photo", message.getAttachment());
+		return res.toString();
 	}
 
 	public String getClient() {
@@ -88,8 +92,10 @@ public class Telegram extends Thread {
 	}
 
 	public static String getUsername(String id) throws Exception {
+		JSONObject data = new JSONObject();
+		data.put("chat_id", id);
 		JSONObject response = new JSONObject(HttpsHandler.httpspost("https://api.telegram.org/bot" + token + "/getChat",
-				"application/json", "{\"chat_id\":" + id + "}"));
+				"application/json", data.toString()));
 		return response.getJSONObject("result").getString("username").toLowerCase();
 	}
 
