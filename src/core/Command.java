@@ -1,16 +1,31 @@
 package core;
 
 public class Command {
+	
+	public enum CommandType {
+		SINGULAR, EXPECTSRESPONSE
+	}
+	
 	private String client;
 	private String sender;
 	private String command;
 	private String details;
+	private CommandType commandtype;
 	
 	public Command(String cli, String sen, String com, String det){
 		this.client = cli;
 		this.sender = sen;
 		this.command = com;
-		this. details = det;
+		this.details = det;
+		this.commandtype = CommandType.SINGULAR;
+	}
+	
+	public Command(String cli, String sen, String com, String det, CommandType ctype){
+		this.client = cli;
+		this.sender = sen;
+		this.command = com;
+		this.details = det;
+		this.commandtype = ctype;
 	}
 	
 	//Getter functions
@@ -30,6 +45,11 @@ public class Command {
 		return this.details;
 	}
 	
+	public CommandType getCommandType(){
+		return this.commandtype;
+	}
+	
+
 	public boolean equals(Command other){
 		if(this.client != other.getClient()){
 			return false;
@@ -43,11 +63,14 @@ public class Command {
 		if(this.details != other.getDetails()){
 			return false;
 		}
+		if(this.commandtype != other.getCommandType()){
+			return false;
+		}
 		return true;
 	}
 	
 	public Command clone(){
-		return new Command(this.client, this.sender, this.command, this.details);
+		return new Command(this.client, this.sender, this.command, this.details, this.commandtype);
 	}
 
 }
