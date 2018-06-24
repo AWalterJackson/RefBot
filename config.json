@@ -1,0 +1,11 @@
+{
+    "thread_interval":3000,
+	"load_clients":{
+		"discord":false,
+		"telegram":true
+	},
+	"telegram_config":{
+		"token":"428862011:AAHZGvibW1CIDOBD10ZyhGezZOaJi7JU7zc",
+        "master":"168401515"
+	}
+}
