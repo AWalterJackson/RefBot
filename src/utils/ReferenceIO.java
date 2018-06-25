@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.stream.Stream;
 
@@ -67,10 +68,21 @@ public class ReferenceIO {
 			try {
 				writeToJSON(newuser, username);
 			} catch (IOException e1) {
+				e.printStackTrace();
+				return buildJSONError("Error accessing database.");
+			}
+			return createReference(uid, username, character);
+		} catch (NoSuchFileException e){
+			JSONObject newuser = buildNewUserJSON(uid, username);
+			try {
+				writeToJSON(newuser, username);
+			} catch (IOException e1) {
+				e.printStackTrace();
 				return buildJSONError("Error accessing database.");
 			}
 			return createReference(uid, username, character);
 		} catch (IOException e) {
+			e.printStackTrace();
 			return buildJSONError("Error accessing database.");
 		}
 	}
@@ -149,7 +161,8 @@ public class ReferenceIO {
 		if (!userfile.exists()) {
 			throw new FileNotFoundException();
 		} else {
-			String jsondata = new String(Files.readAllBytes(Paths.get(this.storagepath + filename)));
+			//System.out.println()
+			String jsondata = new String(Files.readAllBytes(Paths.get(this.storagepath + filename + ".json")));
 			return new JSONObject(jsondata);
 		}
 	}
